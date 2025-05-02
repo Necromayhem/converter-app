@@ -1,76 +1,41 @@
-<script setup lang="ts">
+<script setup>
 import { ref } from "vue";
-import { useForm, useField } from 'vee-validate';
-import * as yup from 'yup';
 
-// создание схемы валидации при помощи yup из vee-validate
-const schema = yup.object({
-  name: yup.string().required('Пожалуйста, введите ваше имя'),
-  email: yup.string().email('Введите корректный email').required('Email обязателен'),
-  password: yup.string()
-    .min(6, 'Пароль должен быть не менее 6 символов')
-    .max(64, 'Пароль не должен превышать 64 символа')
-    .required('Пароль обязателен'),
-  confirmPassword: yup.string()
-    .oneOf([yup.ref('password')], 'Пароли не совпадают')
-    .required('Подтвердите пароль')
-  });
-
-const { handleSubmit, errors} = useForm({
-  validationSchema: schema,
-  validateOnMount: false, // Не валидировать при загрузке
-})
-
-const { value: name } = useField('name');
-const { value: email } = useField('email');
-const { value: password } = useField('password');
-const { value: confirmPassword } = useField('confirmPassword');
-    
+const form = ref({
+  name: "",
+  email: "",
+  password: "",
+  confirmPassword: "",
+});
 
 const showPassword = ref(false);
 const showConfirmPassword = ref(false);
 
-const onSubmit = handleSubmit(async (values) => {
-  try {
-    console.log('Отправка данных:', values);
-    const response = await fetch('/api/register', {
-      method: 'POST',
-      body: JSON.stringify(values)
-    });
-    const data = await response.json();
-    console.log('Ответ сервера:', data);
-  } catch (error) {
-    console.error('Ошибка при отправке:', error);
-  }
-})
-
+const handleSubmit = () => {
+  console.log("Текущие значения формы:");
+  console.log("Name:", form.value.name);
+  console.log("Email:", form.value.email);
+  console.log("Password:", form.value.password);
+  console.log("Confirm:", form.value.confirmPassword);
+};
 </script>
 
 <template>
   <div class="container">
     <div class="register-form">
-      <h2>Создать аккаунт</h2>
+      <h2>Авторизация</h2>
 
-      <form @submit.prevent="onSubmit">
-        <div class="form-group">
-          <input 
-          type="text" 
-          placeholder="Ваше имя" 
-          v-model="name"/>
-        </div>
+      <form @submit.prevent="handleSubmit">
 
         <div class="form-group">
-          <input 
-          type="email" 
-          placeholder="Ваша почта" 
-          v-model="email" />
+          <input type="email" placeholder="Ваша почта" v-model="form.email" />
         </div>
 
         <div class="form-group password-group">
           <input
             :type="showPassword ? 'text' : 'password'"
-            placeholder="Пароль (минимум 6 символов)"
-            v-model="password"
+            placeholder="Пароль"
+            v-model="form.password"
           />
           <span class="toggle-password" @click="showPassword = !showPassword">
             <img
@@ -82,7 +47,7 @@ const onSubmit = handleSubmit(async (values) => {
           <input
             :type="showConfirmPassword ? 'text' : 'password'"
             placeholder="Пароль ещё раз"
-            v-model="confirmPassword"
+            v-model="form.confirmPassword"
           />
           <span class="toggle-password" @click="showConfirmPassword = !showConfirmPassword">
             <img
@@ -91,10 +56,9 @@ const onSubmit = handleSubmit(async (values) => {
           </span>
         </div>
 
-        <button class="btn-register" type="submit">Регистрация</button>
+        <button class="btn-register" type="submit">Вход</button>
         <div class="login-wrapper">
-          <span class="login">Уже есть аккаунт?</span>
-          <span class="login auth">Войти</span>
+          <span class="login auth">Создать новый аккаунт</span>
         </div>
       </form>
     </div>
@@ -211,7 +175,4 @@ input {
     background-color: #3aa876;
   }
 }
-
-
-
 </style>

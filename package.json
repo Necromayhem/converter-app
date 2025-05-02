@@ -11,7 +11,9 @@
     "type-check": "vue-tsc --build"
   },
   "dependencies": {
+    "@vee-validate/yup": "^4.15.0",
     "axios": "^1.9.0",
+    "vee-validate": "^4.15.0",
     "vue": "^3.5.13",
     "vue-router": "^4.5.1"
   },
