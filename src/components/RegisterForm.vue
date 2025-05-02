@@ -33,16 +33,33 @@ const showConfirmPassword = ref(false);
 const onSubmit = handleSubmit(async (values) => {
   try {
     console.log('Отправка данных:', values);
-    const response = await fetch('/api/register', {
+    const response = await fetch('http://localhost:3000/auth/register', {
       method: 'POST',
-      body: JSON.stringify(values)
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: values.name,
+        email: values.email,
+        password: values.password
+      })
     });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Ошибка сервера');
+    }
+
     const data = await response.json();
-    console.log('Ответ сервера:', data);
+    console.log('Успешный ответ сервера:', data);
   } catch (error) {
-    console.error('Ошибка при отправке:', error);
+    if (error instanceof Error) {
+      console.error('Ошибка при отправке:', error.message);
+    } else {
+      console.error('Неизвестная ошибка:', error);
+    }
   }
-})
+});
 
 </script>
 
