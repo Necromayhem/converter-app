@@ -1,64 +1,154 @@
-<script setup>
-import { ref } from "vue";
+<script setup lang="ts">
+import { computed, ref } from "vue";
+import { useForm, useField } from "vee-validate";
+import schema from '../schemes/validationAuthForm';
+import { useRouter } from 'vue-router';
 
-const form = ref({
-  name: "",
-  email: "",
-  password: "",
-  confirmPassword: "",
+const router = useRouter();
+
+const serverError = ref<string | null>(null);
+
+const { handleSubmit, errors } = useForm({
+  validationSchema: schema,
+  validateOnMount: false, 
 });
 
-const showPassword = ref(false);
-const showConfirmPassword = ref(false);
+const {
+  value: email,
+  errorMessage: emailError,
+  meta: emailMeta,
+} = useField("email");
+const {
+  value: password,
+  errorMessage: passwordError,
+  meta: passwordMeta,
+} = useField("password");
+const {
+  value: confirmPassword,
+  errorMessage: confirmPasswordError,
+  meta: confirmPasswordMeta,
+} = useField("confirmPassword");
 
-const handleSubmit = () => {
-  console.log("Текущие значения формы:");
-  console.log("Name:", form.value.name);
-  console.log("Email:", form.value.email);
-  console.log("Password:", form.value.password);
-  console.log("Confirm:", form.value.confirmPassword);
-};
+const submitted = ref(false); 
+const shouldShowError = (meta: any) =>
+  (submitted.value || meta.touched) && !meta.valid;
+const showPasswordIcon = computed(() => !shouldShowError(passwordMeta));
+
+const showPassword = ref(false);
+
+const onSubmit = handleSubmit(async (values) => {
+  console.log("Попытка авторизации");
+  submitted.value = true;
+  serverError.value = null;
+
+  try {
+    console.log("Отправка данных:", values); 
+
+    const response = await fetch("http://localhost:3000/auth/login", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        email: values.email,
+        password: values.password,
+      }),
+    });
+
+    console.log("Статус ответа:", response.status);
+
+    const responseData = await response.json();
+    console.log("Ответ сервера:", responseData); 
+
+    if (!response.ok) {
+      const errorMessage = 
+        responseData.message || 
+        responseData.error ||
+        getValidationError(responseData.errors) ||
+        "Ошибка сервера";
+      throw new Error(errorMessage);
+    }
+
+    if (!responseData.accessToken) {
+      throw new Error("Токен не получен");
+    }
+
+    console.log('Успешная авторизация. accessToken: ', responseData.accessToken);
+    router.push('/home');
+
+  } catch (error) {
+    console.error("Ошибка авторизации:", error);
+    if (error instanceof Error) {
+      serverError.value = error.message;
+    } else {
+      serverError.value = "Неизвестная ошибка";
+    }
+  } finally {
+    submitted.value = false;
+  }
+});
+
+
+function getValidationError(errors: Record<string, string[]> | undefined): string | null {
+  if (!errors) return null;
+  return Object.values(errors).flat().join(", ");
+}
 </script>
 
 <template>
   <div class="container">
     <div class="register-form">
       <h2>Авторизация</h2>
-
-      <form @submit.prevent="handleSubmit">
+      <div v-if="serverError" class="server-error">
+        {{ serverError }}
+      </div>
+      <form @submit.prevent="onSubmit" novalidate>
 
         <div class="form-group">
-          <input type="email" placeholder="Ваша почта" v-model="form.email" />
+          <input
+            type="email"
+            placeholder="Ваша почта"
+            v-model="email"
+            formnovalidate
+            :class="{
+              'error-input': shouldShowError(emailMeta),
+              'input-shake': shouldShowError(emailMeta),
+            }"
+          />
+          <span v-if="shouldShowError(emailMeta)" class="error-message">
+            {{ emailError }}
+          </span>
         </div>
 
         <div class="form-group password-group">
           <input
             :type="showPassword ? 'text' : 'password'"
             placeholder="Пароль"
-            v-model="form.password"
+            v-model="password"
+            :class="{
+              'error-input': shouldShowError(passwordMeta),
+              'input-shake': shouldShowError(passwordMeta),
+            }"
           />
-          <span class="toggle-password" @click="showPassword = !showPassword">
+          <span
+            class="toggle-password"
+            @click="showPassword = !showPassword"
+            v-show="showPasswordIcon"
+          >
             <img
               :src="`/icons/${showPassword ? 'close-eye' : 'open-eye'}.svg`"
             />
           </span>
-        </div>
-        <div class="form-group password-group">
-          <input
-            :type="showConfirmPassword ? 'text' : 'password'"
-            placeholder="Пароль ещё раз"
-            v-model="form.confirmPassword"
-          />
-          <span class="toggle-password" @click="showConfirmPassword = !showConfirmPassword">
-            <img
-              :src="`/icons/${showConfirmPassword ? 'close-eye' : 'open-eye'}.svg`"
-            />
+          <span v-if="shouldShowError(passwordMeta)" class="error-message">
+            {{ passwordError }}
           </span>
         </div>
 
         <button class="btn-register" type="submit">Вход</button>
         <div class="login-wrapper">
-          <span class="login auth">Создать новый аккаунт</span>
+          <span class="login">Нет аккаунта?</span>
+          <span class="login auth" @click="router.push('/register')">Создать</span>
         </div>
       </form>
     </div>
@@ -155,6 +245,15 @@ input {
   background: transparent;
   border: none;
   font-size: 18px;
+  .toggle-password {
+    transition: opacity 0.5s ease;
+
+    &[v-show="false"] {
+      opacity: 0;
+      pointer-events: none;
+    }
+  }
+
   & img {
     width: 34px;
     height: 34px;
@@ -174,5 +273,60 @@ input {
   &:hover {
     background-color: #3aa876;
   }
+}
+
+.error-input {
+  border-color: #ff4444 !important;
+}
+
+.error-message {
+  display: block;
+  color: #ff4444;
+  font-size: 14px;
+  margin-top: 5px;
+  padding: 0 5px;
+  font-family: "Rubik", sans-serif;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.input-shake {
+  animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes shake {
+  10%,
+  90% {
+    transform: translateX(-1px);
+  }
+  20%,
+  80% {
+    transform: translateX(2px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-4px);
+  }
+  40%,
+  60% {
+    transform: translateX(4px);
+  }
+}
+
+.server-error {
+  color: #ff4444;
+  background-color: #ffeeee;
+  border-radius: 4px;
 }
 </style>

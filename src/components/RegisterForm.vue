@@ -1,98 +1,160 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { useForm, useField } from 'vee-validate';
-import * as yup from 'yup';
+import { computed, ref } from "vue";
+import { useForm, useField } from "vee-validate";
+import schema from '../schemes/validationRegisterForm';
+import { useRouter } from 'vue-router';
 
-// создание схемы валидации при помощи yup из vee-validate
-const schema = yup.object({
-  name: yup.string().required('Пожалуйста, введите ваше имя'),
-  email: yup.string().email('Введите корректный email').required('Email обязателен'),
-  password: yup.string()
-    .min(6, 'Пароль должен быть не менее 6 символов')
-    .max(64, 'Пароль не должен превышать 64 символа')
-    .required('Пароль обязателен'),
-  confirmPassword: yup.string()
-    .oneOf([yup.ref('password')], 'Пароли не совпадают')
-    .required('Подтвердите пароль')
-  });
+const router = useRouter();
+const serverError = ref<string | null>(null);
 
-const { handleSubmit, errors} = useForm({
+const { handleSubmit, errors } = useForm({
   validationSchema: schema,
-  validateOnMount: false, // Не валидировать при загрузке
-})
+  validateOnMount: false, 
+});
 
-const { value: name } = useField('name');
-const { value: email } = useField('email');
-const { value: password } = useField('password');
-const { value: confirmPassword } = useField('confirmPassword');
-    
+const {
+  value: name,
+  errorMessage: nameError,
+  meta: nameMeta,
+} = useField("name");
+const {
+  value: email,
+  errorMessage: emailError,
+  meta: emailMeta,
+} = useField("email");
+const {
+  value: password,
+  errorMessage: passwordError,
+  meta: passwordMeta,
+} = useField("password");
+const {
+  value: confirmPassword,
+  errorMessage: confirmPasswordError,
+  meta: confirmPasswordMeta,
+} = useField("confirmPassword");
+
+const submitted = ref(false); 
+const shouldShowError = (meta: any) =>
+  (submitted.value || meta.touched) && !meta.valid;
+const showPasswordIcon = computed(() => !shouldShowError(passwordMeta));
+const showConfirmPasswordIcon = computed(() => !shouldShowError(confirmPasswordMeta));
 
 const showPassword = ref(false);
 const showConfirmPassword = ref(false);
 
 const onSubmit = handleSubmit(async (values) => {
+  console.log('Попытка регистрации');
+  submitted.value = true;
+  serverError.value = null;
+
   try {
-    console.log('Отправка данных:', values);
-    const response = await fetch('http://localhost:3000/auth/register', {
-      method: 'POST',
+    console.log("Отправка данных:", values);
+
+    const response = await fetch("http://localhost:3000/auth/register", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         name: values.name,
         email: values.email,
-        password: values.password
-      })
+        password: values.password,
+      }),
     });
 
+    const responseData = await response.json();
+
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Ошибка сервера');
+      const errorMessage = 
+        responseData.message || 
+        responseData.error ||
+        getValidationError(responseData.errors) ||
+        "Ошибка сервера";
+      throw new Error(errorMessage);
     }
 
-    const data = await response.json();
-    console.log('Успешный ответ сервера:', data);
+    console.log(
+      "Успешная регистрация. accessToken: ", responseData.accessToken);
+    router.push('/home'); 
+
   } catch (error) {
     if (error instanceof Error) {
-      console.error('Ошибка при отправке:', error.message);
+      serverError.value = error.message;
+      console.error("Ошибка при отправке:", error.message);
     } else {
-      console.error('Неизвестная ошибка:', error);
+      serverError.value = "Неизвестная ошибка";
+      console.error("Неизвестная ошибка:", error);
     }
   }
 });
 
+
+function getValidationError(errors: Record<string, string[]> | undefined): string | null {
+  if (!errors) return null;
+  return Object.values(errors).flat().join(", ");
+}
 </script>
 
 <template>
   <div class="container">
     <div class="register-form">
       <h2>Создать аккаунт</h2>
-
-      <form @submit.prevent="onSubmit">
+      <div v-if="serverError" class="server-error">
+        {{ serverError }}
+      </div>
+      <form @submit.prevent="onSubmit" novalidate>
         <div class="form-group">
-          <input 
-          type="text" 
-          placeholder="Ваше имя" 
-          v-model="name"/>
+          <input
+            type="text"
+            placeholder="Ваше имя"
+            v-model="name"
+            :class="{
+              'error-input': shouldShowError(nameMeta),
+              'input-shake': shouldShowError(nameMeta),
+            }"
+          />
+          <span v-if="shouldShowError(nameMeta)" class="error-message">
+            {{ nameError }}
+          </span>
         </div>
 
         <div class="form-group">
-          <input 
-          type="email" 
-          placeholder="Ваша почта" 
-          v-model="email" />
+          <input
+            type="email"
+            placeholder="Ваша почта"
+            v-model="email"
+            formnovalidate
+            :class="{
+              'error-input': shouldShowError(emailMeta),
+              'input-shake': shouldShowError(emailMeta),
+            }"
+          />
+          <span v-if="shouldShowError(emailMeta)" class="error-message">
+            {{ emailError }}
+          </span>
         </div>
 
         <div class="form-group password-group">
           <input
             :type="showPassword ? 'text' : 'password'"
-            placeholder="Пароль (минимум 6 символов)"
+            placeholder="Пароль"
             v-model="password"
+            :class="{
+              'error-input': shouldShowError(passwordMeta),
+              'input-shake': shouldShowError(passwordMeta),
+            }"
           />
-          <span class="toggle-password" @click="showPassword = !showPassword">
+          <span
+            class="toggle-password"
+            @click="showPassword = !showPassword"
+            v-show="showPasswordIcon"
+          >
             <img
               :src="`/icons/${showPassword ? 'close-eye' : 'open-eye'}.svg`"
             />
+          </span>
+          <span v-if="shouldShowError(passwordMeta)" class="error-message">
+            {{ passwordError }}
           </span>
         </div>
         <div class="form-group password-group">
@@ -100,18 +162,31 @@ const onSubmit = handleSubmit(async (values) => {
             :type="showConfirmPassword ? 'text' : 'password'"
             placeholder="Пароль ещё раз"
             v-model="confirmPassword"
+            :class="{
+              'error-input': shouldShowError(confirmPasswordMeta),
+              'input-shake': shouldShowError(confirmPasswordMeta),
+            }"
           />
-          <span class="toggle-password" @click="showConfirmPassword = !showConfirmPassword">
+          <span
+            class="toggle-password"
+            @click="showConfirmPassword = !showConfirmPassword"
+            v-show="showConfirmPasswordIcon"
+          >
             <img
-              :src="`/icons/${showConfirmPassword ? 'close-eye' : 'open-eye'}.svg`"
+              :src="`/icons/${
+                showConfirmPassword ? 'close-eye' : 'open-eye'
+              }.svg`"
             />
+          </span>
+          <span v-if="shouldShowError(confirmPasswordMeta)" class="error-message">
+            {{ confirmPasswordError }}
           </span>
         </div>
 
         <button class="btn-register" type="submit">Регистрация</button>
         <div class="login-wrapper">
           <span class="login">Уже есть аккаунт?</span>
-          <span class="login auth">Войти</span>
+          <span class="login auth" @click="router.push('/login')">Войти</span>
         </div>
       </form>
     </div>
@@ -208,6 +283,15 @@ input {
   background: transparent;
   border: none;
   font-size: 18px;
+  .toggle-password {
+    transition: opacity 0.5s ease;
+
+    &[v-show="false"] {
+      opacity: 0;
+      pointer-events: none;
+    }
+  }
+
   & img {
     width: 34px;
     height: 34px;
@@ -229,6 +313,58 @@ input {
   }
 }
 
+.error-input {
+  border-color: #ff4444 !important;
+}
 
+.error-message {
+  display: block;
+  color: #ff4444;
+  font-size: 14px;
+  margin-top: 5px;
+  padding: 0 5px;
+  font-family: "Rubik", sans-serif;
+  animation: fadeIn 0.3s ease-in-out;
+}
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.input-shake {
+  animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes shake {
+  10%,
+  90% {
+    transform: translateX(-1px);
+  }
+  20%,
+  80% {
+    transform: translateX(2px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-4px);
+  }
+  40%,
+  60% {
+    transform: translateX(4px);
+  }
+}
+
+.server-error {
+  color: #ff4444;
+  background-color: #ffeeee;
+  border-radius: 4px;
+}
 </style>
