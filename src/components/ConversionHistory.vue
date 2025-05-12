@@ -1,9 +1,9 @@
-<script setup>
+<script setup lang="ts">
 import { useHistoryStore } from '@/stores/historyStore'
 
 const historyStore = useHistoryStore()
 
-const formatDate = (timestamp) => {
+const formatDate = (timestamp: number): string => {
   return new Date(timestamp).toLocaleString()
 }
 </script>

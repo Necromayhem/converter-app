@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { useCurrencyConverter } from './composables/useCurrencyConverter'
 import { useHistoryStore } from './stores/historyStore'
 import ConversionHistory from './components/ConversionHistory.vue'
