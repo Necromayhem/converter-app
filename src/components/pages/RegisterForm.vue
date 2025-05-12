@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useForm, useField } from "vee-validate";
-import schema from '../schemes/validationAuthForm';
+import schema from '@/schemes/validationRegisterForm';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
-
 const serverError = ref<string | null>(null);
 
 const { handleSubmit, errors } = useForm({
@@ -13,6 +12,11 @@ const { handleSubmit, errors } = useForm({
   validateOnMount: false, 
 });
 
+const {
+  value: name,
+  errorMessage: nameError,
+  meta: nameMeta,
+} = useField("name");
 const {
   value: email,
   errorMessage: emailError,
@@ -33,33 +37,32 @@ const submitted = ref(false);
 const shouldShowError = (meta: any) =>
   (submitted.value || meta.touched) && !meta.valid;
 const showPasswordIcon = computed(() => !shouldShowError(passwordMeta));
+const showConfirmPasswordIcon = computed(() => !shouldShowError(confirmPasswordMeta));
 
 const showPassword = ref(false);
+const showConfirmPassword = ref(false);
 
 const onSubmit = handleSubmit(async (values) => {
-  console.log("Попытка авторизации");
+  console.log('Попытка регистрации');
   submitted.value = true;
   serverError.value = null;
 
   try {
-    console.log("Отправка данных:", values); 
+    console.log("Отправка данных:", values);
 
-    const response = await fetch("http://localhost:3000/auth/login", {
+    const response = await fetch("http://localhost:3000/auth/register", {
       method: "POST",
-      headers: { 
+      headers: {
         "Content-Type": "application/json",
       },
-      credentials: "include",
       body: JSON.stringify({
+        name: values.name,
         email: values.email,
         password: values.password,
       }),
     });
 
-    console.log("Статус ответа:", response.status);
-
     const responseData = await response.json();
-    console.log("Ответ сервера:", responseData); 
 
     if (!response.ok) {
       const errorMessage = 
@@ -70,22 +73,18 @@ const onSubmit = handleSubmit(async (values) => {
       throw new Error(errorMessage);
     }
 
-    if (!responseData.accessToken) {
-      throw new Error("Токен не получен");
-    }
-
-    console.log('Успешная авторизация. accessToken: ', responseData.accessToken);
-    router.push('/home');
+    console.log(
+      "Успешная регистрация. accessToken: ", responseData.accessToken);
+    router.push('/home'); 
 
   } catch (error) {
-    console.error("Ошибка авторизации:", error);
     if (error instanceof Error) {
       serverError.value = error.message;
+      console.error("Ошибка при отправке:", error.message);
     } else {
       serverError.value = "Неизвестная ошибка";
+      console.error("Неизвестная ошибка:", error);
     }
-  } finally {
-    submitted.value = false;
   }
 });
 
@@ -99,11 +98,25 @@ function getValidationError(errors: Record<string, string[]> | undefined): strin
 <template>
   <div class="container">
     <div class="register-form">
-      <h2>Авторизация</h2>
+      <h2>Создать аккаунт</h2>
       <div v-if="serverError" class="server-error">
         {{ serverError }}
       </div>
       <form @submit.prevent="onSubmit" novalidate>
+        <div class="form-group">
+          <input
+            type="text"
+            placeholder="Ваше имя"
+            v-model="name"
+            :class="{
+              'error-input': shouldShowError(nameMeta),
+              'input-shake': shouldShowError(nameMeta),
+            }"
+          />
+          <span v-if="shouldShowError(nameMeta)" class="error-message">
+            {{ nameError }}
+          </span>
+        </div>
 
         <div class="form-group">
           <input
@@ -144,11 +157,36 @@ function getValidationError(errors: Record<string, string[]> | undefined): strin
             {{ passwordError }}
           </span>
         </div>
+        <div class="form-group password-group">
+          <input
+            :type="showConfirmPassword ? 'text' : 'password'"
+            placeholder="Пароль ещё раз"
+            v-model="confirmPassword"
+            :class="{
+              'error-input': shouldShowError(confirmPasswordMeta),
+              'input-shake': shouldShowError(confirmPasswordMeta),
+            }"
+          />
+          <span
+            class="toggle-password"
+            @click="showConfirmPassword = !showConfirmPassword"
+            v-show="showConfirmPasswordIcon"
+          >
+            <img
+              :src="`/icons/${
+                showConfirmPassword ? 'close-eye' : 'open-eye'
+              }.svg`"
+            />
+          </span>
+          <span v-if="shouldShowError(confirmPasswordMeta)" class="error-message">
+            {{ confirmPasswordError }}
+          </span>
+        </div>
 
-        <button class="btn-register" type="submit">Вход</button>
+        <button class="btn-register" type="submit">Регистрация</button>
         <div class="login-wrapper">
-          <span class="login">Нет аккаунта?</span>
-          <span class="login auth" @click="router.push('/register')">Создать</span>
+          <span class="login">Уже есть аккаунт?</span>
+          <span class="login auth" @click="router.push('/login')">Войти</span>
         </div>
       </form>
     </div>
