@@ -4,10 +4,10 @@ import RegisterForm from '@/components/pages/RegisterForm.vue';
 import HomePage from '@/components/pages/HomePage.vue';
 
 const routes = [
-  { path: '/', redirect: '/register' },
-  { path: '/register', component: RegisterForm },
-  { path: '/login', component: AuthForm },
-  { path: '/home', component: HomePage, meta: { requiresAuth: true } },
+  { path: '/', redirect: '/main' },
+  // { path: '/register', component: RegisterForm },
+  // { path: '/login', component: AuthForm },
+  // { path: '/home', component: HomePage, meta: { requiresAuth: true } },
 ];
 
 const router = createRouter({
