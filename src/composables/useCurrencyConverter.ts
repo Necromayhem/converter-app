@@ -122,7 +122,7 @@ export function useCurrencyConverter() {
 
 			if (cacheValid) {
 				console.log(
-					`✅ Используется кеш (возраст: ${Math.floor(cacheAge / 60000)} мин.)`,
+					`✅ Используется кеш валют (возраст: ${Math.floor(cacheAge / 60000)} мин.)`,
 					cachedRates.value[fromCurrency.value].data
 				)
 				const cachedData = cachedRates.value[fromCurrency.value].data

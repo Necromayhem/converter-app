@@ -6,6 +6,7 @@ const themeStore = useThemeStore()
 const articles = ref<NewsArticle[]>([])
 const loading = ref<boolean>(true)
 const error = ref<string | null>(null)
+const dataSource = ref<'cache' | 'api'>('api') // Для отслеживания источника данных
 
 interface NewsSource {
 	name: string
@@ -18,24 +19,75 @@ interface NewsArticle {
 	publishedAt: string
 }
 
-// api_1 cb47e92582bba4bfbf17aa19280863bd
+const CACHE_KEY = 'gnewsCache'
+const CACHE_EXPIRY = 14400000 // 4 часа
+
+// Проверка актуальности кеша
+const isCacheValid = (cachedData: any): boolean => {
+	if (!cachedData) return false
+	return Date.now() - cachedData.timestamp < CACHE_EXPIRY
+}
 
 const fetchNews = async () => {
 	try {
 		loading.value = true
 		error.value = null
+
+		// Проверяем кеш
+		const cachedDataRaw = localStorage.getItem(CACHE_KEY)
+		const cachedData = cachedDataRaw ? JSON.parse(cachedDataRaw) : null
+
+		if (isCacheValid(cachedData)) {
+			articles.value = cachedData.articles
+			dataSource.value = 'cache'
+			console.log('Используются кешированные новости')
+			return
+		}
+
+		// Запрос к API если кеш устарел или отсутствует
 		const response = await fetch(
 			'https://gnews.io/api/v4/top-headlines?category=business&lang=ru&max=10&apikey=528d988ad79373768244f8109e265f67'
 		)
+
 		if (!response.ok) throw new Error('Ошибка загрузки новостей')
+
 		const data = await response.json()
 		articles.value = data.articles || []
+		dataSource.value = 'api'
+
+		// Сохраняем в кеш
+		localStorage.setItem(
+			CACHE_KEY,
+			JSON.stringify({
+				articles: articles.value,
+				timestamp: Date.now(),
+			})
+		)
+
+		console.log('Новости загружены с API и сохранены в кеш')
 	} catch (err) {
-		console.error('Error:', err)
-		error.value = 'Не удалось загрузить новости'
+		console.error('Ошибка:', err)
+
+		// Пробуем использовать устаревший кеш при ошибке
+		const cachedDataRaw = localStorage.getItem(CACHE_KEY)
+		const cachedData = cachedDataRaw ? JSON.parse(cachedDataRaw) : null
+
+		if (cachedData?.articles) {
+			articles.value = cachedData.articles
+			dataSource.value = 'cache'
+			error.value = 'Новые новости не загружены (используются кешированные)'
+		} else {
+			error.value = 'Не удалось загрузить новости'
+		}
 	} finally {
 		loading.value = false
 	}
+}
+
+// Очистка кеша (можно вызывать при необходимости)
+const clearNewsCache = () => {
+	localStorage.removeItem(CACHE_KEY)
+	console.log('Кеш новостей очищен')
 }
 
 onMounted(fetchNews)
