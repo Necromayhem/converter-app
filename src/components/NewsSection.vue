@@ -18,12 +18,14 @@ interface NewsArticle {
 	publishedAt: string
 }
 
+// api_1 cb47e92582bba4bfbf17aa19280863bd
+
 const fetchNews = async () => {
 	try {
 		loading.value = true
 		error.value = null
 		const response = await fetch(
-			'https://gnews.io/api/v4/top-headlines?category=business&lang=ru&max=10&apikey=cb47e92582bba4bfbf17aa19280863bd'
+			'https://gnews.io/api/v4/top-headlines?category=business&lang=ru&max=10&apikey=528d988ad79373768244f8109e265f67'
 		)
 		if (!response.ok) throw new Error('Ошибка загрузки новостей')
 		const data = await response.json()
