@@ -26,6 +26,7 @@ export function useCurrencyConverter() {
 	const error: Ref<string | null> = ref(null)
 	const lastUpdated: Ref<Date | null> = ref(null)
 	const cachedRates: Ref<CachedRates> = ref({})
+	const CACHE_KEY = 'currencyExchangeRatesCache'
 
 	const API_KEY: string = '7e4360c7c3083a80f199c37a'
 	const API_URL: string = `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/`
