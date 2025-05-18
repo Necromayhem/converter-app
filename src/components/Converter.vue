@@ -76,8 +76,8 @@ const convert = async () => {
 					step="0.01"
 					@keyup.enter="convert"
 					@input="playKeyPress"
-					@keydown.delete="playKeySound"
-					@keydown.backspace="playKeySound"
+					@keydown.delete="playKeyPress"
+					@keydown.backspace="playKeyPress"
 				/>
 			</div>
 

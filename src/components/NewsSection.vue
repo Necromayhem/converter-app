@@ -1,11 +1,22 @@
-<script setup>
-import { ref, onMounted, watch } from 'vue'
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { useThemeStore } from '@/stores/themeStore'
 
 const themeStore = useThemeStore()
-const articles = ref([])
-const loading = ref(true)
-const error = ref(null)
+const articles = ref<NewsArticle[]>([])
+const loading = ref<boolean>(true)
+const error = ref<string | null>(null)
+
+interface NewsSource {
+	name: string
+}
+
+interface NewsArticle {
+	title: string
+	url: string
+	source: NewsSource
+	publishedAt: string
+}
 
 const fetchNews = async () => {
 	try {
@@ -20,26 +31,10 @@ const fetchNews = async () => {
 	} catch (err) {
 		console.error('Error:', err)
 		error.value = 'Не удалось загрузить новости'
-		articles.value = getFallbackNews()
 	} finally {
 		loading.value = false
 	}
 }
-
-const getFallbackNews = () => [
-	{
-		title: 'Курс доллара обновил максимум за месяц',
-		url: '#',
-		source: { name: 'РБК' },
-		publishedAt: new Date().toISOString(),
-	},
-	{
-		title: 'Евро упал ниже 90 рублей впервые за последний месяц',
-		url: '#',
-		source: { name: 'Коммерсантъ' },
-		publishedAt: new Date().toISOString(),
-	},
-]
 
 onMounted(fetchNews)
 </script>
