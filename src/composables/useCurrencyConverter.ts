@@ -13,8 +13,13 @@ interface ExchangeRateData {
 	time_last_update_utc: string
 }
 
+interface CachedRate {
+	data: ExchangeRateData
+	timestamp: number
+}
+
 interface CachedRates {
-	[key: string]: ExchangeRateData
+	[key: string]: CachedRate
 }
 
 export function useCurrencyConverter() {
@@ -25,11 +30,19 @@ export function useCurrencyConverter() {
 	const isLoading: Ref<boolean> = ref(false)
 	const error: Ref<string | null> = ref(null)
 	const lastUpdated: Ref<Date | null> = ref(null)
-	const cachedRates: Ref<CachedRates> = ref({})
-	const CACHE_KEY = 'currencyExchangeRatesCache'
 
 	const API_KEY: string = '7e4360c7c3083a80f199c37a'
 	const API_URL: string = `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/`
+	const CACHE_KEY: string = 'currencyExchangeRatesCache'
+	const CACHE_EXPIRY: number = 14400000 // 4 часа
+
+	// Инициализация кеша из localStorage
+	const initializeCache = (): CachedRates => {
+		const cachedData = localStorage.getItem(CACHE_KEY)
+		return cachedData ? JSON.parse(cachedData) : {}
+	}
+
+	const cachedRates: Ref<CachedRates> = ref(initializeCache())
 
 	const currencies: Ref<Currency[]> = ref([
 		{ code: 'USD', name: 'Доллар США' },
@@ -81,38 +94,59 @@ export function useCurrencyConverter() {
 		return (amount.value * exchangeRate.value).toFixed(2)
 	})
 
+	// Сохранение данных в кеш
+	const saveToCache = (currency: string, data: ExchangeRateData) => {
+		const cacheEntry: CachedRate = {
+			data,
+			timestamp: Date.now(),
+		}
+
+		cachedRates.value[currency] = cacheEntry
+		localStorage.setItem(CACHE_KEY, JSON.stringify(cachedRates.value))
+	}
+
+	// Проверка актуальности кеша
+	const isCacheValid = (currency: string): boolean => {
+		if (!cachedRates.value[currency]) return false
+
+		const cacheAge = Date.now() - cachedRates.value[currency].timestamp
+		return cacheAge < CACHE_EXPIRY
+	}
+
 	async function fetchExchangeRate(): Promise<void> {
+		// Проверяем актуальный кеш
 		if (cachedRates.value[fromCurrency.value]) {
-			const cachedData = cachedRates.value[fromCurrency.value]
-			if (
-				Date.now() - new Date(cachedData.time_last_update_utc).getTime() <
-				3600000
-			) {
+			const cacheAge =
+				Date.now() - cachedRates.value[fromCurrency.value].timestamp
+			const cacheValid = cacheAge < CACHE_EXPIRY
+
+			if (cacheValid) {
+				console.log(
+					`✅ Используется кеш (возраст: ${Math.floor(cacheAge / 60000)} мин.)`,
+					cachedRates.value[fromCurrency.value].data
+				)
+				const cachedData = cachedRates.value[fromCurrency.value].data
 				exchangeRate.value = cachedData.conversion_rates[toCurrency.value]
 				lastUpdated.value = new Date(cachedData.time_last_update_utc)
 				return
 			}
 		}
 
+		console.log('🔄 Запрашиваем новые данные с API...')
 		isLoading.value = true
 		error.value = null
 
 		try {
-			const response: AxiosResponse<ExchangeRateData> = await axios.get(
-				`${API_URL}${fromCurrency.value}`
-			)
+			const response = await axios.get(`${API_URL}${fromCurrency.value}`)
 
 			if (response.data.result === 'success') {
-				cachedRates.value[fromCurrency.value] = response.data
+				console.log('📥 Получены новые данные:', response.data)
+				saveToCache(fromCurrency.value, response.data)
 				exchangeRate.value = response.data.conversion_rates[toCurrency.value]
 				lastUpdated.value = new Date(response.data.time_last_update_utc)
-			} else {
-				throw new Error(response.data['error-type'] || 'Неизвестная ошибка API')
 			}
-		} catch (err: unknown) {
-			console.error('Ошибка при получении курса валют:', err)
-			error.value = `Не удалось получить курс валют: ${err instanceof Error ? err.message : 'Неизвестная ошибка'}`
-			exchangeRate.value = null
+		} catch (err) {
+			console.error('❌ Ошибка при запросе:', err)
 		} finally {
 			isLoading.value = false
 		}
