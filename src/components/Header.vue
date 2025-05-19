@@ -28,6 +28,7 @@ const toggleTheme = () => {
 				<router-link to="/" class="nav-link">Конвертер</router-link>
 				<router-link to="/rates" class="nav-link">Курсы валют</router-link>
 				<router-link to="/news" class="nav-link">Новости</router-link>
+				<router-link to="/weather" class="nav-link">Погода</router-link>
 				<router-link to="/history" class="nav-link">История</router-link>
 			</nav>
 
