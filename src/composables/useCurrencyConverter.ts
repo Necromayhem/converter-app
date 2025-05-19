@@ -23,7 +23,7 @@ interface CachedRates {
 }
 
 export function useCurrencyConverter() {
-	const amount: Ref<number> = ref(1)
+	const amount: Ref<number> = ref(1000)
 	const fromCurrency: Ref<string> = ref('USD')
 	const toCurrency: Ref<string> = ref('EUR')
 	const exchangeRate: Ref<number | null> = ref(null)

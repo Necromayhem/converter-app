@@ -72,7 +72,7 @@ const convert = async () => {
 					id="amount"
 					type="number"
 					v-model.number="amount"
-					min="0"
+					min="1"
 					step="0.01"
 					@keyup.enter="convert"
 					@input="playKeyPress"

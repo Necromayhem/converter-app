@@ -3,12 +3,25 @@ import { ref } from 'vue'
 import { useThemeStore } from '@/stores/themeStore'
 
 const themeStore = useThemeStore()
-
 const darkMode = ref(false)
+// const isNewsDropDownOpen = ref(false)
+
+// const newsCategories = [
+// 	{ name: 'Экономика', path: '/news/economy' },
+// 	{ name: 'Политика', path: '/news/politics' },
+// 	{ name: 'Спорт', path: '/news/sports' },
+// 	{ name: 'Технологии', path: '/news/tech' },
+// 	{ name: 'Здоровье', path: '/news/health' },
+// ]
 
 const toggleTheme = () => {
 	themeStore.toggleTheme()
 }
+
+// const navigateTo = (path: string) => {
+// 	router.push(path)
+// 	isNewsDropdownOpen.value = false
+// }
 </script>
 
 <template>
